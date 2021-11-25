@@ -48,7 +48,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
           sample_y = dist_y(gen);
           sample_theta = dist_theta(gen);
 
-          Particle sample = {i, sample_x,sample_y, sample_theta, 1.0/num_particles};
+          Particle sample = {i, sample_x,sample_y, sample_theta, 1.0};
           particles.push_back(sample);
           // Print your samples to the terminal.
           std::cout << "Sample " << i + 1 << " " << sample_x << " " << sample_y << " "
@@ -135,32 +135,39 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
    */
 
-    //transform particles data into map location use homogenous transformation
-    //push into a vector of landmarkobs
-    //dataAssociation(particles , observations);
+
 
 
     // define coordinates and theta
-     double x_part, y_part, x_obs, y_obs, theta;
-     x_part = 4;
-     y_part = 5;
-     x_obs = 2;
-     y_obs = 2;
-     theta = -M_PI/2; // -90 degrees
+    for(int i =0; i<num_particles;i++)
+    {
+        double x_part, y_part, x_obs, y_obs, theta;
+        x_part = particles[i].x;
+        y_part = particles[i].y;
+        theta =  particles[i].theta;
 
-     // transform to map x coordinate
-     double x_map;
-     x_map = x_part + (cos(theta) * x_obs) - (sin(theta) * y_obs);
+        for(int j = 0; j<observations.size();j++)
+        {
+            x_obs = observations[j].x;
+            y_obs = observations[j].y;
 
-     // transform to map y coordinate
-     double y_map;
-     y_map = y_part + (sin(theta) * x_obs) + (cos(theta) * y_obs);
+            // transform to map x coordinate
+            double x_map_particle = x_part + (cos(theta) * x_obs) - (sin(theta) * y_obs);
 
-     // (6,3)
-     std::cout << int(round(x_map)) << ", " << int(round((y_map)) << std::endl;
+            // transform to map y coordinate
+            double y_map_particle = y_part + (sin(theta) * x_obs) + (cos(theta) * y_obs);
+
+            //use nearest neibgough method to match with map observations
+            particles[i].sense_x.push_back(x_map_particle);
+            particles[i].sense_y.push_back(y_map_particle);
 
 
-   }
+            //then calculate the multivariate gaussian probabity
+
+
+        }
+    }
+
 }
 
 void ParticleFilter::resample() {
