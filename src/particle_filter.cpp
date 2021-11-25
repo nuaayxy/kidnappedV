@@ -86,7 +86,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
 
 }
 
-void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted, 
+void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
                                      vector<LandmarkObs>& observations) {
   /**
    * TODO: Find the predicted measurement that is closest to each 
@@ -96,24 +96,24 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
    *   probably find it useful to implement this method and use it as a helper 
    *   during the updateWeights phase.
    */
-    for(int i = 0; i<predicted.size() ;i ++)
-    {
-        int min_dist = INT_MAX;
-        int min_idx = -1;
-        for(int j = 0; j<observations.size();j++)
-        {
+//    for(int i = 0; i<predicted.size() ;i ++)
+//    {
+//        double min_dist = 9999999;
+//        int min_idx = -1;
+//        for(int j = 0; j<observations.size();j++)
+//        {
 
-            double distance = dist(predicted[i].x, predicted[i].y, observations[j].x, observations[j].y );
-            if(distance < min_dist)
-            {
+//            double distance = dist(predicted[i].x, predicted[i].y, observations[j].x, observations[j].y );
+//            if(distance < min_dist)
+//            {
 
-                min_idx = observations[j].id;
-                min_dist = distance;
-            }
-        }
+//                min_idx = observations[j].id;
+//                min_dist = distance;
+//            }
+//        }
 
-        predicted[i].id = min_idx;
-    }
+//        predicted[i].id = min_idx;
+//    }
 
 
 }
@@ -135,9 +135,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
    */
 
-
-
-
     // define coordinates and theta
     for(int i =0; i<num_particles;i++)
     {
@@ -145,6 +142,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         x_part = particles[i].x;
         y_part = particles[i].y;
         theta =  particles[i].theta;
+        particles[i].weight = 1;
 
         for(int j = 0; j<observations.size();j++)
         {
@@ -161,12 +159,63 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             particles[i].sense_x.push_back(x_map_particle);
             particles[i].sense_y.push_back(y_map_particle);
 
+            int map_size = map_landmarks.landmark_list.size();;
+//for each observation find the closet map_landmarks
+            double min_dist = 99999;
+            int min_idx =  -1;
+            double min_x = 0;
+            double min_y = 0;
+            for(int k = 0;k< map_size; k++)
+            {
+                double map_x = map_landmarks.landmark_list[k].x_f;
+                double map_y = map_landmarks.landmark_list[k].y_f;
+                int map_id = map_landmarks.landmark_list[k].id_i;
+
+                std::cout<<k<<"    "<<map_id<<std::endl;
+
+                double distance = dist(map_x, map_y, x_map_particle, y_map_particle );
+                if(distance < min_dist)
+                {
+
+                    min_idx = map_id;
+                    min_dist = distance;
+                    min_x = map_x;
+                    min_y = map_y;
+                }
+
+            }
+
+            //push back the associated map landmark id relative to the observation
+            particles[i].associations.push_back(min_idx);
+
+//            double min_map_x =
+            particles[i].weight *= multiv_prob(std_landmark[0], std_landmark[1], x_map_particle, y_map_particle, min_x, min_y);
+
+
+
+
+
+            //find the map landmark id
+//            particles[i].associations.push_back();
+
 
             //then calculate the multivariate gaussian probabity
 
 
         }
+
+        weights.push_back(particles[i].weight);
+
+
+
     }
+
+        //normalize the weights of each particle so they sum to 1
+        double sum_of_elems = std::accumulate(weights.begin(), weights.end(), 0.0);
+        for(int i = 0;i<weights.size();i++)
+        {
+            weights[i]/=sum_of_elems;
+        }
 
 }
 
@@ -177,6 +226,44 @@ void ParticleFilter::resample() {
    * NOTE: You may find std::discrete_distribution helpful here.
    *   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
    */
+
+//p3 = []
+//max_w = max(w)
+//for i in range(N):
+//    beta = random.uniform(0,max_w )
+//    index = 0
+//    while w[index] < beta:
+//        beta = beta - w[index]
+//        index = index + 1
+//        index %= N
+//    p3.append(p[index])
+
+// Create the distribution with those weights
+    std::default_random_engine gen;
+//    std::random_device rd;
+//    std::mt19937 gen(rd());
+    double max_weight = *max_element(std::begin(weights), std::end(weights));
+//    std::discrete_distribution<> distribution_weight(0, max_weight*2);
+    std::uniform_real_distribution<double> distribution(0.0,max_weight*2);
+
+    vector<Particle> particles_copy(particles);
+    particles.clear();
+    for(int i = 0;i<num_particles;i++)
+    {
+        double number = distribution(gen);
+        int idx = 0;
+
+        while(weights[idx]<number)
+        {
+            number = number = weights[idx];
+            idx++;
+            idx%=num_particles;
+        }
+        particles.push_back(particles_copy[idx]);
+
+    }
+
+
 
 
 
